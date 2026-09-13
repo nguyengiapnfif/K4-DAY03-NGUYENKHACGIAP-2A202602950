@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import json
+import time
 from typing import Dict, Any, List
 from dotenv import load_dotenv
 
@@ -17,6 +18,8 @@ if sys.stdout.encoding != 'utf-8':
         pass
 
 load_dotenv()
+
+GEMINI_MAX_RETRIES = 4
 
 class BaseLLMProvider:
     """Interface cơ sở cho các LLM Provider hỗ trợ Native Tool Calling"""
@@ -37,6 +40,16 @@ class MockOfflineProvider(BaseLLMProvider):
 
     def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "") -> Dict[str, Any]:
         prompt_lower = prompt.lower()
+
+        # Đã có Observation từ bước trước -> tổng hợp Final Answer
+        if "observation:" in prompt_lower:
+            last_obs = prompt.split("Observation:")[-1].split("\n")[0].strip()
+            return {
+                "type": "text",
+                "content": f"[Mock Agent Response]: Tổng hợp từ Observation: {last_obs}",
+                "thought": "Đã có dữ liệu Observation từ MCP Server, tổng hợp câu trả lời cuối cùng."
+            }
+
         match = re.search(r"ai20k-k4[ab]-\d+", prompt_lower)
         learner_id = match.group(0).upper() if match else None
 
@@ -111,11 +124,25 @@ class GeminiProvider(BaseLLMProvider):
                 temperature=0.2
             )
 
-            response = client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-                config=config
-            )
+            # Free tier giới hạn request/phút -> tự động chờ và thử lại khi gặp 429/503
+            response = None
+            for attempt in range(1, GEMINI_MAX_RETRIES + 1):
+                try:
+                    response = client.models.generate_content(
+                        model=self.model_name,
+                        contents=prompt,
+                        config=config
+                    )
+                    break
+                except Exception as api_error:
+                    msg = str(api_error)
+                    retryable = any(code in msg for code in ("429", "503", "RESOURCE_EXHAUSTED", "UNAVAILABLE"))
+                    if not retryable or attempt == GEMINI_MAX_RETRIES:
+                        raise
+                    delay_match = re.search(r"retry in ([\d.]+)s", msg)
+                    wait_s = min(float(delay_match.group(1)) + 1, 65) if delay_match else 15 * attempt
+                    print(f"⏳ [Gemini Retry]: {msg[:40]}... chờ {wait_s:.0f}s rồi thử lại (lần {attempt}/{GEMINI_MAX_RETRIES - 1})")
+                    time.sleep(wait_s)
 
             # Kiểm tra xem Gemini có trả về Tool Call không
             if response.function_calls:
@@ -125,18 +152,22 @@ class GeminiProvider(BaseLLMProvider):
                     "type": "tool_call",
                     "tool_name": call.name,
                     "arguments": args,
-                    "thought": f"Gemini quyết định gọi công cụ '{call.name}' với tham số: {json.dumps(args, ensure_ascii=False)}"
+                    "thought": f"Gemini quyết định gọi công cụ '{call.name}' với tham số: {json.dumps(args, ensure_ascii=False)}",
+                    "llm_source": f"gemini:{self.model_name}"
                 }
             else:
                 return {
                     "type": "text",
                     "content": response.text or "",
-                    "thought": "Gemini phản hồi trực tiếp bằng văn bản (không cần gọi công cụ)."
+                    "thought": "Gemini phản hồi trực tiếp bằng văn bản (không cần gọi công cụ).",
+                    "llm_source": f"gemini:{self.model_name}"
                 }
 
         except Exception as e:
-            print(f"⚠️ [Gemini API Warning]: Không thể kết nối live API ({str(e)}). Tự động fallback về Mock.")
-            return MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt)
+            print(f"⚠️ [Gemini API Warning]: Không thể kết nối live API ({str(e)[:200]}). Tự động fallback về Mock.")
+            fallback = MockOfflineProvider().generate_with_tools(prompt, tools_schema, system_prompt)
+            fallback["llm_source"] = "mock-fallback"
+            return fallback
 
 
 class OpenAIProvider(BaseLLMProvider):
