@@ -1,6 +1,7 @@
 """
 🛠️ TOOL DEFINITIONS & EXECUTION BACKEND
 Mã nguồn chứa danh sách Tool Schemas (JSON Schema) và Execution Layer phục vụ cho MCP Server.
+Đề tài: Trợ lý Học vụ Khóa AI20K (tra cứu tiến độ học viên & đặt lịch Mentor 1:1).
 """
 
 import json
@@ -11,41 +12,53 @@ from typing import Dict, Any
 # ==============================================================================
 
 TOOLS_SCHEMA = [
-    # Tool 1: Đã được định nghĩa mẫu sẵn cho Học viên tham khảo
+    # Tool 1: Tra cứu thông tin (Query Tool)
     {
-        "name": "academic_query",
-        "description": "Tra cứu hồ sơ và thông tin học vụ của sinh viên VinUni bằng mã sinh viên.",
+        "name": "learner_progress_query",
+        "description": (
+            "Tra cứu hồ sơ và tiến độ học tập của học viên khóa AI20K bằng mã học viên: "
+            "lớp (K4A/K4B), số lab đã nộp, điểm trung bình lab, tỷ lệ chuyên cần và Mentor phụ trách."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
-                "student_id": {
+                "learner_id": {
                     "type": "string",
-                    "description": "Mã sinh viên cần tra cứu (ví dụ: 'SV2026001')"
+                    "description": "Mã học viên AI20K cần tra cứu (ví dụ: 'AI20K-K4A-001')"
                 }
             },
-            "required": ["student_id"]
+            "required": ["learner_id"]
         }
     },
-    
-    # --------------------------------------------------------------------------
-    # TODO 1.2: HỌC VIÊN HOÀN THIỆN TOOL SCHEMA CHO 'schedule_appointment'
-    # 🎯 YÊU CẦU THIẾT KẾ SCHEMA (JSON SCHEMA STANDARD):
-    # 1. Tool dùng để đặt lịch hẹn tư vấn học vụ với Cố vấn học tập VinUni.
-    # 2. Thiết kế các tham số (properties) để LLM trích xuất:
-    #    - student_id (string): Mã sinh viên cần đặt lịch (ví dụ: 'SV2026001')
-    #    - datetime_str (string): Thời gian hẹn (ví dụ: '14:00 15/09/2026')
-    #    - advisor_name (string): Tên cố vấn học tập
-    # 3. Khai báo danh sách các trường bắt buộc (required).
-    # --------------------------------------------------------------------------
+
+    # Tool 2: Hành động đặt lịch (Action Tool)
     {
-        "name": "schedule_appointment",
-        "description": "Đặt lịch hẹn tư vấn học vụ với Cố vấn học tập VinUni.",
+        "name": "book_mentor_session",
+        "description": (
+            "Đặt lịch buổi hỗ trợ 1:1 giữa học viên khóa AI20K và Mentor. "
+            "Nếu người dùng không nêu tên Mentor, hãy dùng learner_progress_query để tìm Mentor phụ trách trước."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
-                # TODO 1.2: Khai báo các thuộc tính tham số cho Tool tại đây...
+                "learner_id": {
+                    "type": "string",
+                    "description": "Mã học viên AI20K cần đặt lịch (ví dụ: 'AI20K-K4A-001')"
+                },
+                "datetime_str": {
+                    "type": "string",
+                    "description": "Thời gian hẹn theo định dạng 'HH:MM DD/MM/YYYY' (ví dụ: '20:00 16/09/2026')"
+                },
+                "mentor_name": {
+                    "type": "string",
+                    "description": "Tên Mentor phụ trách buổi 1:1 (ví dụ: 'Mentor Trần Minh Khoa')"
+                },
+                "topic": {
+                    "type": "string",
+                    "description": "Nội dung cần hỗ trợ trong buổi 1:1 (ví dụ: 'Debug ReAct loop Lab 3')"
+                }
             },
-            "required": [] # TODO 1.2: Khai báo danh sách các trường bắt buộc tại đây...
+            "required": ["learner_id", "datetime_str", "mentor_name"]
         }
     }
 ]
@@ -54,58 +67,69 @@ TOOLS_SCHEMA = [
 # 2. MÔ PHỎNG DỮ LIỆU & HÀM THỰC THI TOOL (EXECUTION LAYER)
 # ==============================================================================
 
+# Dữ liệu giả lập (fictional) phục vụ bài Lab
 MOCK_DATABASE = {
-    "SV2026001": {
-        "full_name": "Nguyễn Văn An",
-        "class": "AI-K4",
-        "gpa": 3.85,
-        "email": "an.nv@vinuni.edu.vn",
+    "AI20K-K4A-001": {
+        "full_name": "Lê Hoàng Nam",
+        "cohort": "K4A (Lớp Sáng)",
+        "labs_submitted": 2,
+        "labs_total": 3,
+        "avg_lab_score": 8.5,
+        "attendance_rate": "95%",
         "status": "Đang học",
-        "advisor": "PGS.TS Nguyễn Văn A"
+        "mentor": "Mentor Trần Minh Khoa"
     },
-    "SV2026002": {
-        "full_name": "Trần Thị Bình",
-        "class": "AI-K4",
-        "gpa": 3.60,
-        "email": "binh.tt@vinuni.edu.vn",
+    "AI20K-K4B-002": {
+        "full_name": "Phạm Ngọc Mai",
+        "cohort": "K4B (Lớp Chiều)",
+        "labs_submitted": 3,
+        "labs_total": 3,
+        "avg_lab_score": 9.0,
+        "attendance_rate": "100%",
         "status": "Đang học",
-        "advisor": "TS. Lê Thị B"
+        "mentor": "Mentor Phạm Thu Hà"
     }
 }
 
 
-def execute_academic_query(student_id: str) -> str:
-    """Thực thi tra cứu học vụ theo mã sinh viên"""
-    student = MOCK_DATABASE.get(student_id.strip().upper())
-    if student:
+def execute_learner_progress_query(learner_id: str) -> str:
+    """Thực thi tra cứu tiến độ học viên theo mã học viên"""
+    learner = MOCK_DATABASE.get(learner_id.strip().upper())
+    if learner:
         return json.dumps({
             "status": "SUCCESS",
-            "student_id": student_id,
-            "data": student
+            "learner_id": learner_id,
+            "data": learner
         }, ensure_ascii=False)
     else:
         return json.dumps({
             "status": "NOT_FOUND",
-            "message": f"Không tìm thấy dữ liệu sinh viên có mã '{student_id}'"
+            "message": f"Không tìm thấy học viên AI20K có mã '{learner_id}'"
         }, ensure_ascii=False)
 
 
-def execute_schedule_appointment(student_id: str, datetime_str: str, advisor_name: str = "PGS.TS Nguyễn Văn A") -> str:
-    """Thực thi đặt lịch hẹn tư vấn học vụ"""
+def execute_book_mentor_session(learner_id: str, datetime_str: str, mentor_name: str, topic: str = "Hỗ trợ học tập chung") -> str:
+    """Thực thi đặt lịch buổi Mentor 1:1"""
+    if learner_id.strip().upper() not in MOCK_DATABASE:
+        return json.dumps({
+            "status": "NOT_FOUND",
+            "message": f"Không thể đặt lịch: không tìm thấy học viên AI20K có mã '{learner_id}'"
+        }, ensure_ascii=False)
     return json.dumps({
         "status": "SUCCESS",
-        "booking_id": f"BK-{student_id}-99",
-        "student_id": student_id,
+        "booking_id": f"MS-{learner_id.strip().upper()}-01",
+        "learner_id": learner_id,
         "datetime": datetime_str,
-        "advisor": advisor_name,
-        "message": f"Đặt lịch thành công cho sinh viên {student_id} với {advisor_name} vào lúc {datetime_str}."
+        "mentor": mentor_name,
+        "topic": topic,
+        "message": f"Đặt lịch Mentor 1:1 thành công cho học viên {learner_id} với {mentor_name} vào lúc {datetime_str} (chủ đề: {topic})."
     }, ensure_ascii=False)
 
 
 # Router gọi tool thực tế
 TOOL_ROUTER = {
-    "academic_query": execute_academic_query,
-    "schedule_appointment": execute_schedule_appointment
+    "learner_progress_query": execute_learner_progress_query,
+    "book_mentor_session": execute_book_mentor_session
 }
 
 def dispatch_tool_call(tool_name: str, arguments: Dict[str, Any]) -> str:

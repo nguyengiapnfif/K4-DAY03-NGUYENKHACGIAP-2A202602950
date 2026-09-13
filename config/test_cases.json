@@ -2,36 +2,36 @@
   {
     "id": "TC01",
     "type": "direct_query",
-    "question": "Chào bạn, bạn có thể giới thiệu quy chế học vụ cơ bản của Đại học VinUni không?",
-    "expected_behavior": "Chatbot trả lời trực tiếp từ System Prompt, không cần gọi bất kỳ Tool nào.",
+    "question": "Chào bạn, quy định đặt tên repo và cách nộp bài lab trong khóa AI20K là gì?",
+    "expected_behavior": "Agent trả lời trực tiếp từ System Prompt (fork repo, đặt tên K4-DAY03-HoVaTen-MSSV, nộp link trên LMS VLearn), không gọi bất kỳ Tool nào.",
     "complexity": "Low"
   },
   {
     "id": "TC02",
     "type": "single_tool_query",
-    "question": "Hãy tra cứu thông tin học vụ của sinh viên SV2026001.",
-    "expected_behavior": "Agent nhận diện nhu cầu tra cứu, tự động phát sinh Tool Call 'academic_query' với mã SV2026001.",
+    "question": "Hãy tra cứu tiến độ học tập của học viên AI20K-K4A-001.",
+    "expected_behavior": "Agent nhận diện nhu cầu tra cứu, tự động phát sinh Tool Call 'learner_progress_query' với mã AI20K-K4A-001.",
     "complexity": "Medium"
   },
   {
     "id": "TC03",
     "type": "appointment_booking",
-    "question": "TODO: [Học viên tự viết câu hỏi yêu cầu Agent đặt lịch hẹn tư vấn học vụ]",
-    "expected_behavior": "Agent tự động phát sinh Tool Call 'schedule_appointment' với đúng thời gian và thông tin sinh viên.",
+    "question": "Đặt giúp học viên AI20K-K4B-002 một buổi Mentor 1:1 với Mentor Phạm Thu Hà lúc 19:30 ngày 15/09/2026 để review bài Lab 3.",
+    "expected_behavior": "Agent tự động phát sinh Tool Call 'book_mentor_session' với learner_id AI20K-K4B-002, datetime_str '19:30 15/09/2026', mentor_name 'Mentor Phạm Thu Hà'.",
     "complexity": "Medium"
   },
   {
     "id": "TC04",
     "type": "multi_step_reasoning",
-    "question": "TODO: [Học viên tự viết câu hỏi yêu cầu Agent suy luận ReAct đa bước (Tra cứu -> Đặt lịch với Cố vấn)]",
-    "expected_behavior": "Agent thực hiện chuỗi suy luận ReAct: Tra cứu cố vấn học tập của sinh viên trước, sau đó tiến hành đặt lịch hẹn.",
+    "question": "Tôi là học viên AI20K-K4A-001, hãy xem Mentor phụ trách tôi là ai rồi đặt buổi 1:1 với Mentor đó lúc 20:00 ngày 16/09/2026 để hỏi về ReAct loop.",
+    "expected_behavior": "Agent thực hiện chuỗi suy luận ReAct: gọi 'learner_progress_query' để tìm Mentor phụ trách (Mentor Trần Minh Khoa) trước, sau đó gọi 'book_mentor_session' với Mentor vừa tìm được.",
     "complexity": "High"
   },
   {
     "id": "TC05",
     "type": "edge_case_handling",
-    "question": "TODO: [Học viên tự viết câu hỏi tra cứu mã sinh viên không tồn tại (ví dụ SV9999999)]",
-    "expected_behavior": "Agent nhận kết quả NOT_FOUND từ Tool và đưa ra phản hồi lịch sự, chính xác không bịa đặt dữ liệu.",
+    "question": "Cho tôi xem điểm lab và Mentor của học viên AI20K-K4A-999.",
+    "expected_behavior": "Agent nhận kết quả NOT_FOUND từ 'learner_progress_query' và phản hồi lịch sự rằng không tìm thấy học viên, không bịa đặt điểm hay tên Mentor.",
     "complexity": "Medium"
   }
 ]

@@ -4,6 +4,7 @@ Hỗ trợ Native Tool Calling và chuyển đổi linh hoạt qua biến môi t
 """
 
 import os
+import re
 import sys
 import json
 from typing import Dict, Any, List
@@ -36,27 +37,30 @@ class MockOfflineProvider(BaseLLMProvider):
 
     def generate_with_tools(self, prompt: str, tools_schema: List[Dict[str, Any]], system_prompt: str = "") -> Dict[str, Any]:
         prompt_lower = prompt.lower()
-        
+        match = re.search(r"ai20k-k4[ab]-\d+", prompt_lower)
+        learner_id = match.group(0).upper() if match else None
+
         # Mô phỏng nhận diện intent gọi Tool
-        if "sv2026001" in prompt_lower and "đặt lịch" in prompt_lower:
+        if learner_id and ("đặt" in prompt_lower and "mentor" in prompt_lower):
             return {
                 "type": "tool_call",
-                "tool_name": "schedule_appointment",
-                "arguments": {"student_id": "SV2026001", "datetime_str": "14:00 15/09/2026", "advisor_name": "PGS.TS Nguyễn Văn A"},
-                "thought": "Người dùng yêu cầu đặt lịch hẹn tư vấn cho sinh viên SV2026001. Tôi sẽ gọi tool schedule_appointment."
+                "tool_name": "book_mentor_session",
+                "arguments": {"learner_id": learner_id, "datetime_str": "19:30 15/09/2026", "mentor_name": "Mentor Phạm Thu Hà"},
+                "thought": f"Người dùng yêu cầu đặt lịch Mentor 1:1 cho học viên {learner_id}. Tôi sẽ gọi tool book_mentor_session."
             }
-        elif "sv2026001" in prompt_lower or "tra cứu" in prompt_lower:
+        elif learner_id or "tra cứu" in prompt_lower:
+            learner_id = learner_id or "AI20K-K4A-001"
             return {
                 "type": "tool_call",
-                "tool_name": "academic_query",
-                "arguments": {"student_id": "SV2026001"},
-                "thought": "Người dùng muốn tra cứu thông tin học vụ của sinh viên SV2026001. Tôi sẽ gọi tool academic_query."
+                "tool_name": "learner_progress_query",
+                "arguments": {"learner_id": learner_id},
+                "thought": f"Người dùng muốn tra cứu tiến độ học tập của học viên {learner_id}. Tôi sẽ gọi tool learner_progress_query."
             }
         else:
             return {
                 "type": "text",
-                "content": f"[Mock Agent Response]: Xin chào! Quy chế học vụ VinUni yêu cầu sinh viên tích lũy tối thiểu 120 tín chỉ và duy trì GPA trên 2.0 để tốt nghiệp.",
-                "thought": "Câu hỏi chung về quy chế học vụ, trả lời trực tiếp không cần gọi Tool."
+                "content": f"[Mock Agent Response]: Xin chào! Bài lab AI20K làm cá nhân: fork repo về GitHub, đặt tên K4-DAY03-HoVaTen-MSSV và nộp link repo trên LMS VLearn.",
+                "thought": "Câu hỏi chung về quy định nộp bài lab, trả lời trực tiếp không cần gọi Tool."
             }
 
 

@@ -2,7 +2,7 @@
 
 > **Họ và Tên Học viên:** [Điền Họ và Tên]  
 > **Mã Sinh Viên / Mã Học viên:** [Điền MSSV]  
-> **Chủ đề Lựa chọn:** [Điền tên chủ đề đã chọn từ docs/DANH_SACH_DE_TAI.md hoặc Đề tài Mở]  
+> **Chủ đề Lựa chọn:** Đề tài Mở — Trợ lý Học vụ Khóa AI20K (tra cứu tiến độ học viên & đặt lịch Mentor 1:1)  
 
 ---
 
