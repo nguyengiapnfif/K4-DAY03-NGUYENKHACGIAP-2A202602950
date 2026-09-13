@@ -5,7 +5,7 @@
     "action_type": "FINAL_ANSWER",
     "thought": "Câu hỏi chung về quy chế học vụ, trả lời trực tiếp không cần gọi Tool.",
     "output": "[Mock Agent Response]: Xin chào! Quy chế học vụ VinUni yêu cầu sinh viên tích lũy tối thiểu 120 tín chỉ và duy trì GPA trên 2.0 để tốt nghiệp.",
-    "latency_ms": 2845.93
+    "latency_ms": 0.0
   },
   {
     "step": 1,
@@ -16,7 +16,7 @@
       "student_id": "SV2026001"
     },
     "observation": {},
-    "latency_ms": 799.12
+    "latency_ms": 0.0
   },
   {
     "step": 2,
